@@ -155,7 +155,6 @@ def finetune_after_prune(net, epochs, batch_size, lr, reg, log_every_n=50):
             outputs = net(inputs)
             loss = criterion(outputs, targets)
             loss.backward()
-            
             for name, model in net.named_modules():
                 if isinstance(model, PrunedConv):
                     model.conv.weight.grad.data.mul_(model.mask)
@@ -163,8 +162,6 @@ def finetune_after_prune(net, epochs, batch_size, lr, reg, log_every_n=50):
                     model.linear.weight.grad.data.mul_(model.mask)
                 else:
                     pass
-                
-                
             optimizer.step()
             train_loss += loss.item()
             _, predicted = outputs.max(1)

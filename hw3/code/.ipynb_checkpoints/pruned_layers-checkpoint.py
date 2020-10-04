@@ -35,7 +35,6 @@ class PruneLinear(nn.Module):
         flattened_weights = np.abs(np_weight.flatten())
         # Generate the pruning threshold according to 'prune by percentage'. (Your code: 1 Line) 
         thresh =   np.percentile(flattened_weights, q)
-
         # Generate a mask to determine which weights should be pruned (Your code: <=3 Lines)
         self.mask = np.abs(np_weight) > thresh
         self.mask = np.float32(self.mask)
