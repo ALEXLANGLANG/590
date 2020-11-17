@@ -13,8 +13,7 @@ import torch.nn.functional as F
 import torchvision
 import torchvision.transforms as transforms
 import torch.optim as optim
-from tqdm import tqdm_notebook as tqdm
-
+from torch.optim.lr_scheduler import MultiStepLR
 
 def get_num_correct(pred,labels):
     return pred.argmax(dim=1).eq(labels).sum().item()
@@ -24,15 +23,17 @@ def init_weights(m):
         
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-def train_(train_set,test_set,depth,model_checkpoint,epochs):
+def train_(train_set,test_set,lr, depth,model_checkpoint,epochs):
 
     torch.manual_seed(1)
     train_loader=torch.utils.data.DataLoader(train_set, batch_size=128, shuffle=False, pin_memory=True,num_workers=2)
     test_loader=torch.utils.data.DataLoader(test_set, batch_size=100, shuffle=False, pin_memory=True,num_workers=2)
     network= Net(depth).to(device)
-    optimizer = optim.SGD(network.parameters(), lr=0.05, momentum=0.9, nesterov=True, weight_decay=5e-4)
+    optimizer = optim.SGD(network.parameters(), lr=lr, momentum=0.9, nesterov=True, weight_decay=5e-4)
     criterion = torch.nn.CrossEntropyLoss().to(device)
-    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=0.95)
+#     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=0.95)
+    scheduler = MultiStepLR(optimizer, milestones=[30, 60, 80], gamma=0.2)
+    
     acc_train=[]
     acc_test=[]
     acc = 0
@@ -52,8 +53,8 @@ def train_(train_set,test_set,depth,model_checkpoint,epochs):
             loss.backward() #Calculate gradients
             optimizer.step() #Update weights
             total_correct+=correct
-#         print("epoch: ", epoch,  "total_correct: ", total_correct)
-#         print("training accuracy: ", total_correct/len(train_set))
+        print("epoch: ", epoch,  "total_correct: ", total_correct)
+        print("training accuracy: ", total_correct/len(train_set))
         acc_train.append(deepcopy(float(total_correct)/len(train_set)))
 
         with torch.no_grad():
@@ -63,7 +64,7 @@ def train_(train_set,test_set,depth,model_checkpoint,epochs):
                 images_test, labels_test = images_test.to(device), labels_test.to(device)
                 preds_test=network(images_test) #pass batch to network
                 correct_test += get_num_correct(preds_test, labels_test)
-#             print("testing accuracy: ", correct_test / len(test_set))
+            print("testing accuracy: ", correct_test / len(test_set))
             if epoch == epochs - 1:
                 print(correct_test / len(test_set))
                 acc = correct_test / len(test_set) 
@@ -73,16 +74,16 @@ def train_(train_set,test_set,depth,model_checkpoint,epochs):
             best_acc = acc
             torch.save(network.state_dict(), model_checkpoint)
 
-    return best_acc
-    
+    return (acc_train,acc_test)
     
     
 def do_test(flag_augmetation = False, 
             flag_cutout = False, 
-            n_holes = 10, 
-            length = 10, 
+            n_holes = 1, 
+            length = 16, 
             depth = 18,
-            epochs = 100
+            epochs = 100,
+            lr = 0.1
            ):
     model_checkpoint = "resnet" + str(depth) 
     if flag_augmetation:
@@ -116,19 +117,28 @@ def do_test(flag_augmetation = False,
         download=True,
         transform=transforms.Compose([transforms.ToTensor(), normalize]))
     
-    acc = train_(train_set,test_set,depth, model_checkpoint, epochs = epochs)
-    return acc
+    acc_train,acc_test = train_(train_set,test_set,lr, depth, model_checkpoint, epochs = epochs)
+    return (acc_train,acc_test)
 
 
 
 list_acc = []
 for depth in [18,34,50,101]:
     for flag_cutout in [False, True]:
-        acc = do_test(flag_augmetation = False, 
-                flag_cutout = flag_cutout, 
-                n_holes = 10, 
-                length = 10, 
-                depth = depth,
-                epochs = 80)
-        list_acc.append(acc)
+        acc_train,acc_test  = do_test(flag_augmetation = True, 
+                                            flag_cutout = flag_cutout, 
+                                            n_holes = 10, 
+                                            length = 10, 
+                                            depth = depth,
+                                            epochs = 2,
+                                          lr = 0.1)
+        
+        list_acc.append(acc_train)
+        list_acc.append(acc_test)
+
+        
+import pandas as pd
+list_acc = pd.DataFrame(list_acc)
+list_acc.to_csv("acc.csv",index = False)
+
 print(list_acc)
