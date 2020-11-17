@@ -52,8 +52,8 @@ def train_(train_set,test_set,depth,model_checkpoint,epochs):
             loss.backward() #Calculate gradients
             optimizer.step() #Update weights
             total_correct+=correct
-        print("epoch: ", epoch,  "total_correct: ", total_correct)
-        print("training accuracy: ", total_correct/len(train_set))
+#         print("epoch: ", epoch,  "total_correct: ", total_correct)
+#         print("training accuracy: ", total_correct/len(train_set))
         acc_train.append(deepcopy(float(total_correct)/len(train_set)))
 
         with torch.no_grad():
@@ -63,7 +63,7 @@ def train_(train_set,test_set,depth,model_checkpoint,epochs):
                 images_test, labels_test = images_test.to(device), labels_test.to(device)
                 preds_test=network(images_test) #pass batch to network
                 correct_test += get_num_correct(preds_test, labels_test)
-            print("testing accuracy: ", correct_test / len(test_set))
+#             print("testing accuracy: ", correct_test / len(test_set))
             if epoch == epochs - 1:
                 print(correct_test / len(test_set))
                 acc = correct_test / len(test_set) 
@@ -118,3 +118,17 @@ def do_test(flag_augmetation = False,
     
     acc = train_(train_set,test_set,depth, model_checkpoint, epochs = epochs)
     return acc
+
+
+
+list_acc = []
+for depth in [18,34,50,101]:
+    for flag_cutout in [False, True]:
+        acc = do_test(flag_augmetation = False, 
+                flag_cutout = flag_cutout, 
+                n_holes = 10, 
+                length = 10, 
+                depth = depth,
+                epochs = 80)
+        list_acc.append(acc)
+print(list_acc)

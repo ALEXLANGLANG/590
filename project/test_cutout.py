@@ -118,3 +118,17 @@ def do_test(flag_augmetation = False,
     
     acc = train_(train_set,test_set,depth, model_checkpoint, epochs = epochs)
     return acc
+
+
+
+list_acc = []
+for depth in [18,34,50,101]:
+    for flag_cutout in [False, True]:
+        acc = do_test(flag_augmetation = False, 
+                flag_cutout = flag_cutout, 
+                n_holes = 10, 
+                length = 10, 
+                depth = depth,
+                epochs = 80)
+        list_acc.append(acc)
+print(list_acc)
