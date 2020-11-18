@@ -1,5 +1,6 @@
 from resnet import ResNet_  as Net
 from cutout  import Cutout
+from mixup import * 
 import numpy as np
 import argparse
 import os, sys
@@ -70,8 +71,8 @@ def train_(train_set,test_set,lr, depth, mixup_enbale, alpha, model_checkpoint,e
             optimizer.step() #Update weights
             
             
-        print("epoch: ", epoch,  "total_correct: ", total_correct.item() )
-        print("training accuracy: ", total_correct.item() /len(train_set))
+        print("epoch: ", epoch,  "total_correct: ", total_correct )
+        print("training accuracy: ", total_correct /len(train_set))
         acc_train.append(deepcopy(float(total_correct)/len(train_set)))
 
         with torch.no_grad():
@@ -110,6 +111,8 @@ def do_test(flag_augmetation = False,
         model_checkpoint += '+'
     if flag_cutout:
         model_checkpoint += "cutout"
+    if mixup_enbale:
+        model_checkpoint += "mixup"
     model_checkpoint += ".pt"
     
     normalize = transforms.Normalize(mean=[x / 255.0 for x in [125.3, 123.0, 113.9]],
@@ -140,46 +143,6 @@ def do_test(flag_augmetation = False,
     acc_train,acc_test = train_(train_set,test_set,lr, depth,mixup_enbale,alpha,  model_checkpoint, epochs = epochs)
     return (acc_train,acc_test)
 
-
-list_acc = []
-for depth in [18,34,50]:
-    acc_train,acc_test  =do_test(flag_augmetation = True, 
-                                flag_cutout = False, 
-                                n_holes = 1, 
-                                length = 16, 
-                                depth = depth,
-                                epochs = 100,
-                                lr = 0.02,
-                                mixup_enbale = False,
-                                alpha = 0.1)
-    list_acc.append(acc_train)
-    list_acc.append(acc_test)
-
-        
-import pandas as pd
-list_acc = pd.DataFrame(list_acc)
-list_acc.to_csv("acc_base.csv",index = False)
-
-list_acc = []
-for depth in [18,34,50]:
-    acc_train,acc_test  =do_test(flag_augmetation = True, 
-                                flag_cutout = True, 
-                                n_holes = 1, 
-                                length = 16, 
-                                depth = depth,
-                                epochs = 100,
-                                lr = 0.02,
-                                mixup_enbale = False,
-                                alpha = 0.1)
-    list_acc.append(acc_train)
-    list_acc.append(acc_test)
-
-        
-import pandas as pd
-list_acc = pd.DataFrame(list_acc)
-list_acc.to_csv("acc_cutout.csv",index = False)
-
-print(list_acc)
 
 list_acc = []
 for depth in [18,34,50]:
