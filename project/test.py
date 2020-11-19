@@ -23,12 +23,11 @@ def init_weights(m):
         torch.nn.init.xavier_uniform_(m.weight)
         
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
-
 def train_(train_set,test_set,lr, depth, mixup_enbale, alpha, model_checkpoint,epochs):
 
-    torch.manual_seed(1)
-    train_loader=torch.utils.data.DataLoader(train_set, batch_size=128, shuffle=False, pin_memory=True,num_workers=2)
-    test_loader=torch.utils.data.DataLoader(test_set, batch_size=100, shuffle=False, pin_memory=True,num_workers=2)
+    torch.manual_seed(0)
+    train_loader=torch.utils.data.DataLoader(train_set, batch_size=128, shuffle=True, pin_memory=True,num_workers=2)
+    test_loader=torch.utils.data.DataLoader(test_set, batch_size=100, shuffle=True, pin_memory=True,num_workers=2)
     network= Net(depth).to(device)
     optimizer = optim.SGD(network.parameters(), lr=lr, momentum=0.9, nesterov=True, weight_decay=5e-4)
     criterion = torch.nn.CrossEntropyLoss().to(device)
@@ -47,14 +46,15 @@ def train_(train_set,test_set,lr, depth, mixup_enbale, alpha, model_checkpoint,e
         for batch in train_loader: #Get batch
             images,labels = batch
             images, labels = images.to(device), labels.to(device)
-            
+            optimizer.zero_grad()
             if mixup_enbale:
                 images, targets_a, targets_b, lam = mixup_data(images, labels, alpha)
                 images, targets_a, targets_b = map(Variable, (images,
                                                           targets_a, targets_b))
                 preds = network(images)
                 loss = mixup_criterion(criterion, preds, targets_a, targets_b, lam)
-
+                loss.backward() #Calculate gradients
+                optimizer.step() #Update weights
                 _, predicted = torch.max(preds.data, 1)
                 correct = (lam * predicted.eq(targets_a.data).cpu().sum().float()
                 + (1 - lam) * predicted.eq(targets_b.data).cpu().sum().float())
@@ -64,13 +64,10 @@ def train_(train_set,test_set,lr, depth, mixup_enbale, alpha, model_checkpoint,e
                 preds=network(images) #pass batch to network
                 correct = get_num_correct(preds, labels)
                 loss = criterion(preds,labels) #Calculate loss
+                loss.backward() #Calculate gradients
+                optimizer.step() #Update weights
                 total_correct+=correct
-            
-            optimizer.zero_grad()
-            loss.backward() #Calculate gradients
-            optimizer.step() #Update weights
-            
-            
+  
         print("epoch: ", epoch,  "total_correct: ", total_correct )
         print("training accuracy: ", total_correct /len(train_set))
         acc_train.append(deepcopy(float(total_correct)/len(train_set)))
@@ -94,8 +91,7 @@ def train_(train_set,test_set,lr, depth, mixup_enbale, alpha, model_checkpoint,e
             best_acc = acc
             torch.save(network.state_dict(), model_checkpoint)
 
-    return (acc_train,acc_test)
-    
+    return (acc_train,acc_test)   
 def do_test(flag_augmetation = False, 
             flag_cutout = False, 
             n_holes = 1, 
@@ -103,7 +99,7 @@ def do_test(flag_augmetation = False,
             depth = 18,
             epochs = 100,
             lr = 0.1,
-            mixup_enbale = True,
+            mixup_enbale = False,
             alpha = 0.1
            ):
     model_checkpoint = "resnet" + str(depth) 
@@ -111,8 +107,6 @@ def do_test(flag_augmetation = False,
         model_checkpoint += '+'
     if flag_cutout:
         model_checkpoint += "cutout"
-    if mixup_enbale:
-        model_checkpoint += "mixup"
     model_checkpoint += ".pt"
     
     normalize = transforms.Normalize(mean=[x / 255.0 for x in [125.3, 123.0, 113.9]],
@@ -126,8 +120,11 @@ def do_test(flag_augmetation = False,
     train_transform.transforms.append(normalize)
     if flag_cutout:
         train_transform.transforms.append(Cutout(n_holes = n_holes, length = length))
-
-
+    
+    test_transform = transforms.Compose([
+        transforms.ToTensor(),
+        normalize])
+    
     train_set=torchvision.datasets.CIFAR10(
         root='./data/cifar10',
         train=True,
@@ -138,12 +135,11 @@ def do_test(flag_augmetation = False,
         root='./data/cifar10',
         train=False,
         download=True,
-        transform=transforms.Compose([transforms.ToTensor(), normalize]))
+        transform=test_transform)
     
+
     acc_train,acc_test = train_(train_set,test_set,lr, depth,mixup_enbale,alpha,  model_checkpoint, epochs = epochs)
     return (acc_train,acc_test)
-
-
 list_acc = []
 for depth in [18,34,50]:
     acc_train,acc_test  =do_test(flag_augmetation = True, 
@@ -159,7 +155,6 @@ for depth in [18,34,50]:
     list_acc.append(acc_test)
     print(acc_train)
     print(acc_test)
-
         
 import pandas as pd
 list_acc = pd.DataFrame(list_acc)
