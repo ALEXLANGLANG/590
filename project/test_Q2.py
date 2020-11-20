@@ -103,10 +103,13 @@ def do_test(flag_augmetation = False,
             alpha = 0.1
            ):
     model_checkpoint = "resnet" + str(depth) 
+
     if flag_augmetation:
         model_checkpoint += '+'
     if flag_cutout:
-        model_checkpoint += "cutout"
+        model_checkpoint += "cutout" + str(length) + str(n_holes)
+    if mixup_enbale:
+        model_checkpoint += 'mixup' + str(alpha) 
     model_checkpoint += ".pt"
     
     normalize = transforms.Normalize(mean=[x / 255.0 for x in [125.3, 123.0, 113.9]],
@@ -142,7 +145,7 @@ def do_test(flag_augmetation = False,
     return (acc_train,acc_test)
 
 list_acc = []
-for length in [12,16,20]:
+for length in [6,8,10]:
     for alpha in [0.1, 1, 2]:
         acc_train,acc_test  =do_test(flag_augmetation = True, 
                                         flag_cutout = True, 
@@ -157,6 +160,6 @@ for length in [12,16,20]:
         list_acc.append(acc_test)
 import pandas as pd
 list_acc = pd.DataFrame(list_acc)
-list_acc.to_csv("acc_all_2.csv",index = False)
+list_acc.to_csv("acc_all_2111.csv",index = False)
 
 print(list_acc)
