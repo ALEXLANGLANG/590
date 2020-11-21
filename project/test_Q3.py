@@ -142,17 +142,6 @@ def do_test(flag_augmetation = False,
                                       transform=train_transform,
                                       download=True)
 
-        extra_dataset = datasets.SVHN(root='data/',
-                                      split='extra',
-                                      transform=train_transform,
-                                      download=True)
-
-        # Combine both training splits (https://arxiv.org/pdf/1605.07146.pdf)
-        data = np.concatenate([train_set.data, extra_dataset.data], axis=0)
-        labels = np.concatenate([train_set.labels, extra_dataset.labels], axis=0)
-        train_set.data = data
-        train_set.labels = labels
-
         test_set = datasets.SVHN(root='data/',
                                      split='test',
                                      transform=test_transform,
@@ -185,7 +174,7 @@ def do_test(flag_augmetation = False,
 
 list_acc = []
 for flag_enbale in [True, False]:
-    for dataset in ['fashion-MNIST', 'svhn']:
+    for dataset in [ 'svhn']:
         acc_train,acc_test  =do_test(flag_augmetation = True, 
                                             flag_cutout = flag_enbale, 
                                             n_holes = 1, 
@@ -201,7 +190,7 @@ for flag_enbale in [True, False]:
 
 import pandas as pd
 list_acc = pd.DataFrame(list_acc)
-list_acc.to_csv("acc_all_3.csv",index = False)
+list_acc.to_csv("acc_all_3_svhn.csv",index = False)
 
 print(list_acc)
 
